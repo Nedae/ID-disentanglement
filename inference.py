@@ -6,6 +6,7 @@ import tensorflow as tf
 from writer import Writer
 from utils import general_utils as utils
 
+import numpy as np
 
 class Inference(object):
     def __init__(self, args, model):
@@ -18,7 +19,7 @@ class Inference(object):
 
         for img_name in tqdm(names):
             id_path = utils.find_file_by_str(self.args.id_dir, img_name.stem)
-            attr_path = utils.find_file_by_str(self.args.attr_dir, img_name.stem)
+            attr_path = utilxs.find_file_by_str(self.args.attr_dir, img_name.stem)
             if len(id_path) != 1 or len(attr_path) != 1:
                 print(f'Could not find a single pair with name: {img_name.stem}')
                 continue
@@ -45,7 +46,9 @@ class Inference(object):
 
             attr_dir = self.args.output_dir.joinpath(f'attr_{attr_num}')
             attr_dir.mkdir(exist_ok=True)
-
+            
+            embs_dir = attr_dir.joinpath('disentangled')
+            embs_dir.mkdir(exist_ok=True)
             utils.save_image(attr_img, attr_dir.joinpath(f'attr_image.png'))
 
             for id_num, id_img_path in enumerate(id_paths):
@@ -54,7 +57,28 @@ class Inference(object):
 
                 id_img = utils.read_image(id_img_path, self.args.resolution, self.args.reals)
 
-                pred = self.G(id_img, attr_img)[0]
+                pred_all = self.G(id_img, attr_img)
+                pred = pred_all[0]
+                
+                pred_id_emb_before_mapping = pred_all[1]
+                pred_attr_emb_before_mapping = pred_all[2]
+                
+                pred_id_emb = pred_all[-4]
+                pred_attr_emb = pred_all[-3]
+                
+                pred_id_img = pred_all[-2]
+                pred_attr_img = pred_all[-1]
+                
+                
+                
+                np.save(embs_dir.joinpath(f'id_{id_num}.npy'), pred_id_emb.numpy())
+                np.save(embs_dir.joinpath(f'attr_{id_num}.npy'), pred_attr_emb.numpy())
+
+                np.save(embs_dir.joinpath(f'id_before_mapping_{id_num}.npy'), pred_id_emb_before_mapping.numpy())
+                np.save(embs_dir.joinpath(f'attr_before_mapping_{id_num}.npy'), pred_attr_emb_before_mapping.numpy())
+                
+                utils.save_image(pred_id_img , embs_dir.joinpath(f'id_{id_num}.png'))
+                utils.save_image(pred_attr_img, embs_dir.joinpath(f'attr_{id_num}.png'))
 
                 utils.save_image(pred, attr_dir.joinpath(f'prediction_{id_num}.png'))
                 utils.save_image(id_img, attr_dir.joinpath(f'id_{id_num}.png'))

@@ -54,9 +54,18 @@ class G(Model):
 
         # Move to roughly [0,1]
         out = (out + 1) / 2
-
-        return out, id_embedding,  attr_out, w[:, 0, :], lnds
-
+        
+        z_id = tf.concat([id_embedding, tf.zeros_like(attr_embedding)], -1)
+        z_attr = tf.concat([tf.zeros_like(id_embedding), attr_embedding], -1)
+        
+        w_id = self.latent_spaces_mapping(z_id)
+        w_attr = self.latent_spaces_mapping(z_attr)
+        
+        out_id = self.stylegan_s(w_id)
+        out_attr = self.stylegan_s(w_attr)
+        
+        return out, id_embedding,  attr_out, w[:, 0, :], lnds, w_id, w_attr, (out_id+1)/2, (out_attr+1)/2
+    
     def my_save(self, reason=''):
         self.attr_encoder.my_save(reason)
         self.latent_spaces_mapping.my_save(reason)
